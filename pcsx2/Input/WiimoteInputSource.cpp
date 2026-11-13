@@ -50,8 +50,8 @@ namespace
 		ICON_PF_BUTTON_A,
 		ICON_PF_JOYCON_DPAD_LEFT,
 		ICON_PF_HOME_MENU,
-		ICON_PF_LEFT_TRIGGER_L2,
-		ICON_PF_LEFT_SHOULDER_LB,
+		ICON_PF_RIGHT_SHOULDER_RB,
+		ICON_PF_BUTTON_B,
 	};
 
 	static constexpr GenericInputBinding s_generic_button_mapping[] = {
@@ -438,9 +438,9 @@ void WiimoteInputSource::PollEvents()
 	if (std::abs(stick[1] - m_previous_stick[1]) > 0.001f)
 	{
 		const InputBindingKey key = MakeGenericControllerAxisKey(InputSourceType::Wiimote, 0, 1);
-		// wii_stick() reports positive Y upward, so the generic axis mapping is inverted.
+		// wii_stick() uses SDL's axis convention: negative Y is up, positive Y is down.
 		InputManager::InvokeEvents(key, stick[1], GenericInputBinding::Unknown,
-			GenericInputBinding::LeftStickDown, GenericInputBinding::LeftStickUp);
+			GenericInputBinding::LeftStickUp, GenericInputBinding::LeftStickDown);
 	}
 	m_previous_stick = stick;
 }
