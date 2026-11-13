@@ -3,6 +3,8 @@
 
 #include "Input/WiimoteInputSource.h"
 
+#include "wiimote/math.h"
+
 #include "Input/InputManager.h"
 #include "IconsPromptFont.h"
 
