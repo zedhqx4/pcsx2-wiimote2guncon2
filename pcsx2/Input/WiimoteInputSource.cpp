@@ -207,6 +207,28 @@ void WiimoteInputSource::ThreadMain()
 	bool received_first_status = false;
 	bool sent_rumble = false;
 	u32 previous_buttons = 0;
+	auto last_report_time = std::chrono::steady_clock::now();
+	auto last_ir_diagnostic = last_report_time;
+	bool previous_ir_tracking = false;
+
+	const auto disconnect = [&](const char* reason) {
+		if (device)
+			SDL_hid_close(device);
+		device = nullptr;
+		extension_connected = false;
+		received_first_status = false;
+		previous_buttons = 0;
+		previous_ir_tracking = false;
+		m_connected.store(false);
+		m_device_list_changed.store(true);
+		next_scan = std::chrono::steady_clock::now() + std::chrono::milliseconds(SCAN_INTERVAL_MS);
+		{
+			std::lock_guard lock(m_state_mutex);
+			m_state = wiimote::WiiState{};
+			m_button_events.clear();
+		}
+		Console.Warning(fmt::format("(WiimoteInputSource) {}. Retrying device discovery.", reason));
+	};
 
 	while (!m_stop.load())
 	{
@@ -254,8 +276,12 @@ void WiimoteInputSource::ThreadMain()
 				m_button_events.clear();
 				previous_buttons = 0;
 			}
+			last_report_time = std::chrono::steady_clock::now();
+			last_ir_diagnostic = last_report_time;
+			previous_ir_tracking = false;
 			m_connected.store(true);
 			m_device_list_changed.store(true);
+			Console.WriteLn("(WiimoteInputSource) Wii Remote connected; waiting for IR points.");
 		}
 
 		const bool rumble = m_rumble.load();
@@ -264,15 +290,7 @@ void WiimoteInputSource::ThreadMain()
 			const std::array<u8, 2> motor_report = {0x10, 0x00};
 			if (!SendReport(device, motor_report, rumble))
 			{
-				SDL_hid_close(device);
-				device = nullptr;
-				m_connected.store(false);
-				m_device_list_changed.store(true);
-				{
-					std::lock_guard lock(m_state_mutex);
-					m_state = wiimote::WiiState{};
-					m_button_events.clear();
-				}
+				disconnect("HID write failed while changing rumble");
 				continue;
 			}
 			sent_rumble = rumble;
@@ -282,22 +300,21 @@ void WiimoteInputSource::ThreadMain()
 		const int bytes_read = SDL_hid_read_timeout(device, input.data(), input.size(), READ_TIMEOUT_MS);
 		if (bytes_read < 0)
 		{
-			SDL_hid_close(device);
-			device = nullptr;
-			extension_connected = false;
-			m_connected.store(false);
-			m_device_list_changed.store(true);
-			{
-				std::lock_guard lock(m_state_mutex);
-				m_state = wiimote::WiiState{};
-				// Do not replay button transitions from the disconnected remote.
-				m_button_events.clear();
-			}
+			disconnect("HID read failed or the remote was unplugged");
 			continue;
 		}
 
 		if (bytes_read == 0)
+		{
+			// Some HID backends report an unplugged device as repeated timeouts
+			// instead of returning an error. A Wii Remote in continuous report
+			// mode should keep sending packets, even when no buttons are pressed.
+			if (std::chrono::steady_clock::now() - last_report_time >= 1500ms)
+				disconnect("No HID reports received for 1.5 seconds");
 			continue;
+		}
+
+		last_report_time = std::chrono::steady_clock::now();
 
 		const std::span<const u8> report(input.data(), static_cast<size_t>(bytes_read));
 		if (const std::optional<wiimote::WiiStatus> status = wiimote::wii_parse_status(report))
@@ -330,15 +347,7 @@ void WiimoteInputSource::ThreadMain()
 				extension_setup_ok = extension_setup_ok && SendReport(device, mode, m_rumble.load());
 				if (!extension_setup_ok)
 				{
-					SDL_hid_close(device);
-					device = nullptr;
-					m_connected.store(false);
-					m_device_list_changed.store(true);
-					{
-						std::lock_guard lock(m_state_mutex);
-						m_state = wiimote::WiiState{};
-						m_button_events.clear();
-					}
+					disconnect("Failed to reconfigure reports after an extension change");
 					continue;
 				}
 			}
@@ -351,6 +360,29 @@ void WiimoteInputSource::ThreadMain()
 		wiimote::WiiState state;
 		if (wiimote::wii_parse_report(report, state))
 		{
+			const auto aim = wiimote::wii_ir_pointer(state.ir);
+			const u32 visible_dots = static_cast<u32>(std::count_if(state.ir.begin(), state.ir.end(),
+				[](const wiimote::WiiIrDot& dot) { return dot.valid; }));
+			const auto now = std::chrono::steady_clock::now();
+			if (aim.has_value() != previous_ir_tracking)
+			{
+				if (aim.has_value())
+					Console.WriteLn(fmt::format("(WiimoteInputSource) IR tracking acquired at ({:.3f}, {:.3f}) with {} visible dots.",
+						aim->at(0), aim->at(1), visible_dots));
+				else
+					Console.Warning(fmt::format("(WiimoteInputSource) IR tracking lost; {} of 4 dots remain visible.", visible_dots));
+				previous_ir_tracking = aim.has_value();
+			}
+			if (!aim.has_value() && now - last_ir_diagnostic >= 1500ms)
+			{
+				const auto dot_text = [](const wiimote::WiiIrDot& dot) {
+					return dot.valid ? fmt::format("({}, {})", dot.x, dot.y) : std::string("missing");
+				};
+				Console.Warning(fmt::format("(WiimoteInputSource) IR unavailable: {}/4 points; {}, {}, {}, {}.",
+					visible_dots, dot_text(state.ir[0]), dot_text(state.ir[1]), dot_text(state.ir[2]), dot_text(state.ir[3])));
+				last_ir_diagnostic = now;
+			}
+
 			if (!extension_connected)
 			{
 				state.has_nunchuk = false;
