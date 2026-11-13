@@ -268,6 +268,11 @@ void WiimoteInputSource::ThreadMain()
 				device = nullptr;
 				m_connected.store(false);
 				m_device_list_changed.store(true);
+				{
+					std::lock_guard lock(m_state_mutex);
+					m_state = wiimote::WiiState{};
+					m_button_events.clear();
+				}
 				continue;
 			}
 			sent_rumble = rumble;
@@ -285,6 +290,8 @@ void WiimoteInputSource::ThreadMain()
 			{
 				std::lock_guard lock(m_state_mutex);
 				m_state = wiimote::WiiState{};
+				// Do not replay button transitions from the disconnected remote.
+				m_button_events.clear();
 			}
 			continue;
 		}
@@ -371,6 +378,14 @@ void WiimoteInputSource::ThreadMain()
 
 	if (m_connected.exchange(false))
 		m_device_list_changed.store(true);
+
+	// Shutdown can happen while buttons are held. Clear the queued transitions
+	// as well as the snapshot so a later poll cannot replay stale input.
+	{
+		std::lock_guard lock(m_state_mutex);
+		m_state = wiimote::WiiState{};
+		m_button_events.clear();
+	}
 }
 
 void WiimoteInputSource::PollEvents()
