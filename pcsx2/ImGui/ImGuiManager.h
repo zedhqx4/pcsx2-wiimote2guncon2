@@ -123,6 +123,8 @@ namespace ImGuiManager
 
 	/// Sets the position of a software cursor, used when we have relative coordinates such as controllers.
 	void SetSoftwareCursorPosition(u32 index, float pos_x, float pos_y);
+	/// Enables a built-in aiming reticle for devices that provide their own absolute position.
+	void SetSoftwareCursorCrosshair(u32 index, bool enabled, u32 color = 0xFFFFFF);
 
 	/// Strips icon characters from a string.
 	std::string StripIconCharacters(std::string_view str);
