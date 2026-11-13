@@ -1322,6 +1322,15 @@
     <ClCompile Include="Input\SDLInputSource.cpp">
       <Filter>Misc\Input</Filter>
     </ClCompile>
+    <ClCompile Include="Input\WiimoteInputSource.cpp">
+      <Filter>Misc\Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Input\wiimote\src\math.cpp">
+      <Filter>Misc\Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Input\wiimote\src\protocol.cpp">
+      <Filter>Misc\Input</Filter>
+    </ClCompile>
     <ClCompile Include="Input\InputManager.cpp">
       <Filter>Misc\Input</Filter>
     </ClCompile>
@@ -2257,6 +2266,15 @@
       <Filter>Misc\Input</Filter>
     </ClInclude>
     <ClInclude Include="Input\SDLInputSource.h">
+      <Filter>Misc\Input</Filter>
+    </ClInclude>
+    <ClInclude Include="Input\WiimoteInputSource.h">
+      <Filter>Misc\Input</Filter>
+    </ClInclude>
+    <ClInclude Include="Input\wiimote\include\wiimote\math.h">
+      <Filter>Misc\Input</Filter>
+    </ClInclude>
+    <ClInclude Include="Input\wiimote\include\wiimote\protocol.h">
       <Filter>Misc\Input</Filter>
     </ClInclude>
     <ClInclude Include="Input\DInputSource.h">
