@@ -134,4 +134,12 @@ TEST(WiimoteMath, AppliesTheNunchukStickDeadZone)
 	const std::array<float, 2> full_right = wiimote::wii_stick({223, 128}, 0.15f);
 	EXPECT_NEAR(full_right[0], 1.0f, 0.001f);
 	EXPECT_NEAR(full_right[1], 0.0f, 0.001f);
+
+	const std::array<float, 2> full_down = wiimote::wii_stick({128, 223}, 0.15f);
+	EXPECT_NEAR(full_down[0], 0.0f, 0.001f);
+	EXPECT_NEAR(full_down[1], 1.0f, 0.001f);
+
+	const std::array<float, 2> full_up = wiimote::wii_stick({128, 33}, 0.15f);
+	EXPECT_NEAR(full_up[0], 0.0f, 0.001f);
+	EXPECT_NEAR(full_up[1], -1.0f, 0.001f);
 }

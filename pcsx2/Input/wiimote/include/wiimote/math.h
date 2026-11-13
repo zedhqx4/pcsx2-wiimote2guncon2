@@ -11,7 +11,7 @@ constexpr float kWiiPointerRange=1.8f;
 // The pointer the IR camera gives: the middle of the two dots furthest apart (the ends of the sensor bar), turned back by the roll of the remote and mirrored sideways (the camera's y grows upward, so it
 // maps straight to y down), as -1..1 of the window (y down), clamped. Nothing while fewer than two dots, or two closer than 6 camera pixels, are seen.
 std::optional<std::array<float,2>> wii_ir_pointer(const std::array<WiiIrDot,4>& dots);
-// The nunchuk's stick as -1..1 (x right, y down like SDL's sticks): centre 128, +-95 to full, a radial dead zone (0..1 of the full deflection) rescaled past it.
+// The nunchuk's stick as -1..1 (x right, y down like SDL's sticks): raw values above 128 are positive on both axes; centre 128, +-95 to full, a radial dead zone (0..1 of the full deflection) rescaled past it.
 // shortcut: no calibration from the nunchuk's EEPROM; read it when sticks are seen to be off-centre.
 std::array<float,2> wii_stick(std::array<uint8_t,2> raw,float dead_zone);
 // Swings and shakes from the accelerometer. Gravity is tracked slowly, what remains is the hand's push; a push in the screen plane (x right, z up) stronger than

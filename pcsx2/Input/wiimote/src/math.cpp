@@ -23,7 +23,7 @@ std::optional<std::array<float,2>> wii_ir_pointer(const std::array<WiiIrDot,4>& 
     return std::array<float,2>{std::clamp(-turned_x/kCenterX*kWiiPointerRange,-1.f,1.f),std::clamp(turned_y/kCenterY*kWiiPointerRange,-1.f,1.f)};   // the bar moves against the aim sideways; the camera's y grows upward, so a high bar is a remote aimed below it
 }
 std::array<float,2> wii_stick(std::array<uint8_t,2> raw,float dead_zone) {
-    const float x=(float(raw[0])-128)/kStickRange,y=(128-float(raw[1]))/kStickRange;
+    const float x=(float(raw[0])-128)/kStickRange,y=(float(raw[1])-128)/kStickRange;
     const float length=std::hypot(x,y);
     if(length<=dead_zone || length==0) return {0,0};
     const float scale=(length-dead_zone)/(1-dead_zone)/length;
