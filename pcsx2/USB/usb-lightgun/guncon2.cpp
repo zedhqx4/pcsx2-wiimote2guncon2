@@ -146,6 +146,7 @@ namespace usb_lightgun
 		//////////////////////////////////////////////////////////////////////////
 		u32 button_state = 0;
 		std::string cursor_path;
+		bool builtin_cursor = false;
 		float cursor_scale = 1.0f;
 		u32 cursor_color = 0xFFFFFFFF;
 		float relative_pos[4] = {};
@@ -335,6 +336,8 @@ namespace usb_lightgun
 
 		if (!us->cursor_path.empty())
 			ImGuiManager::ClearSoftwareCursor(us->GetSoftwarePointerIndex());
+		if (us->builtin_cursor)
+			ImGuiManager::SetSoftwareCursorCrosshair(us->GetSoftwarePointerIndex(), false);
 
 		delete us;
 	}
@@ -381,16 +384,14 @@ namespace usb_lightgun
 			const std::optional<std::array<float, 2>> aim = InputManager::GetWiimoteAimPosition();
 			if (!aim.has_value())
 			{
-				if (!cursor_path.empty())
-					ImGuiManager::SetSoftwareCursorPosition(GetSoftwarePointerIndex(), -10000.0f, -10000.0f);
+				ImGuiManager::SetSoftwareCursorPosition(GetSoftwarePointerIndex(), -10000.0f, -10000.0f);
 				return std::make_tuple(static_cast<s16>(0), static_cast<s16>(0));
 			}
 
 			window_x = (aim->at(0) + 1.0f) * 0.5f * static_cast<float>(ImGuiManager::GetWindowWidth());
 			window_y = (aim->at(1) + 1.0f) * 0.5f * static_cast<float>(ImGuiManager::GetWindowHeight());
 
-			if (!cursor_path.empty())
-				ImGuiManager::SetSoftwareCursorPosition(GetSoftwarePointerIndex(), window_x, window_y);
+			ImGuiManager::SetSoftwareCursorPosition(GetSoftwarePointerIndex(), window_x, window_y);
 		}
 		else
 		{
@@ -459,7 +460,7 @@ namespace usb_lightgun
 
 	void GunCon2State::UpdateSoftwarePointerPosition()
 	{
-		if (cursor_path.empty())
+		if (cursor_path.empty() && !wiimote_ir)
 			return;
 
 		if (wiimote_ir)
@@ -559,6 +560,7 @@ namespace usb_lightgun
 		}
 
 		const s32 prev_pointer_index = s->GetSoftwarePointerIndex();
+		const bool had_builtin_cursor = s->builtin_cursor;
 		s->wiimote_ir = USB::GetConfigBool(si, s->port, TypeName(), "wiimote_ir", false);
 
 		s->has_relative_binds = (USB::ConfigKeyExists(si, s->port, TypeName(), "RelativeLeft") ||
@@ -572,7 +574,11 @@ namespace usb_lightgun
 			s->cursor_scale != cursor_scale || s->cursor_color != cursor_color)
 		{
 			if (prev_pointer_index != new_pointer_index)
+			{
 				ImGuiManager::ClearSoftwareCursor(prev_pointer_index);
+				if (had_builtin_cursor)
+					ImGuiManager::SetSoftwareCursorCrosshair(prev_pointer_index, false);
+			}
 
 			// Pointer changed, so need to update software cursor.
 			const bool had_software_cursor = !s->cursor_path.empty();
@@ -582,13 +588,17 @@ namespace usb_lightgun
 			if (!s->cursor_path.empty())
 			{
 				ImGuiManager::SetSoftwareCursor(new_pointer_index, s->cursor_path, s->cursor_scale, s->cursor_color);
-				s->UpdateSoftwarePointerPosition();
 			}
 			else if (had_software_cursor)
 			{
 				ImGuiManager::ClearSoftwareCursor(new_pointer_index);
 			}
 		}
+
+		s->builtin_cursor = s->wiimote_ir && s->cursor_path.empty();
+		ImGuiManager::SetSoftwareCursorCrosshair(new_pointer_index, s->builtin_cursor, cursor_color);
+		if (s->builtin_cursor || !s->cursor_path.empty())
+			s->UpdateSoftwarePointerPosition();
 	}
 
 	float GunCon2Device::GetBindingValue(const USBDevice* dev, u32 bind_index) const
