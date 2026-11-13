@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <array>
 #include <functional>
 #include <mutex>
 #include <optional>
@@ -24,6 +25,7 @@ enum class InputSourceType : u32
 	Keyboard,
 	Pointer,
 	SDL,
+	Wiimote,
 #ifdef _WIN32
 	DInput,
 	XInput,
@@ -304,6 +306,9 @@ namespace InputManager
 
 	/// Reads absolute pointer position.
 	std::pair<float, float> GetPointerAbsolutePosition(u32 index);
+
+	/// Returns the connected Wii Remote's normalized IR aim position, without generating host mouse events.
+	std::optional<std::array<float, 2>> GetWiimoteAimPosition();
 
 	/// Updates absolute pointer position. Can call from UI thread, use when the host only reports absolute coordinates.
 	void UpdatePointerAbsolutePosition(u32 index, float x, float y);

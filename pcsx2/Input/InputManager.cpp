@@ -3,6 +3,7 @@
 
 #include "ImGui/ImGuiManager.h"
 #include "Input/InputManager.h"
+#include "Input/WiimoteInputSource.h"
 #include "Input/InputSource.h"
 #include "SIO/Pad/Pad.h"
 #include "SIO/Sio.h"
@@ -707,6 +708,7 @@ static std::array<const char*, static_cast<u32>(InputSourceType::Count)> s_input
 	"Keyboard",
 	"Mouse",
 	"SDL",
+	"Wiimote",
 #ifdef _WIN32
 	"DInput",
 	"XInput",
@@ -730,6 +732,7 @@ bool InputManager::GetInputSourceDefaultEnabled(InputSourceType type)
 		case InputSourceType::Keyboard:
 		case InputSourceType::Pointer:
 		case InputSourceType::SDL:
+		case InputSourceType::Wiimote:
 			return true;
 
 #ifdef _WIN32
@@ -1416,6 +1419,13 @@ std::pair<float, float> InputManager::GetPointerAbsolutePosition(u32 index)
 		s_host_pointer_positions[index][static_cast<u8>(InputPointerAxis::Y)]);
 }
 
+std::optional<std::array<float, 2>> InputManager::GetWiimoteAimPosition()
+{
+	const auto* source = static_cast<const WiimoteInputSource*>(
+		s_input_sources[static_cast<u32>(InputSourceType::Wiimote)].get());
+	return source ? source->GetIRPosition() : std::nullopt;
+}
+
 void InputManager::UpdatePointerAbsolutePosition(u32 index, float x, float y)
 {
 	const float dx = x - std::exchange(s_host_pointer_positions[index][static_cast<u8>(InputPointerAxis::X)], x);
@@ -1888,6 +1898,7 @@ void InputManager::UpdateInputSourceState(SettingsInterface& si, std::unique_loc
 void InputManager::ReloadSources(SettingsInterface& si, std::unique_lock<std::mutex>& settings_lock)
 {
 	UpdateInputSourceState<SDLInputSource>(si, settings_lock, InputSourceType::SDL);
+	UpdateInputSourceState<WiimoteInputSource>(si, settings_lock, InputSourceType::Wiimote);
 #ifdef _WIN32
 	UpdateInputSourceState<DInputSource>(si, settings_lock, InputSourceType::DInput);
 	UpdateInputSourceState<XInputSource>(si, settings_lock, InputSourceType::XInput);

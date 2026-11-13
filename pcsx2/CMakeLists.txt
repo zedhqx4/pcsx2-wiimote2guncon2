@@ -8,6 +8,7 @@ else()
 	add_library(PCSX2)
 endif()
 target_link_libraries(PCSX2 PRIVATE PCSX2_FLAGS)
+target_include_directories(PCSX2 PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/Input/wiimote/include")
 
 target_compile_features(PCSX2_FLAGS INTERFACE cxx_std_17)
 target_compile_definitions(PCSX2_FLAGS INTERFACE "${PCSX2_DEFS}")
@@ -870,10 +871,20 @@ set(pcsx2InputSources
 	Input/InputSource.cpp
 	Input/SDLInputSource.cpp
 )
+list(APPEND pcsx2InputSources
+	Input/WiimoteInputSource.cpp
+	Input/wiimote/src/math.cpp
+	Input/wiimote/src/protocol.cpp
+)
 set(pcsx2InputHeaders
 	Input/InputManager.h
 	Input/InputSource.h
 	Input/SDLInputSource.h
+)
+list(APPEND pcsx2InputHeaders
+	Input/WiimoteInputSource.h
+	Input/wiimote/include/wiimote/math.h
+	Input/wiimote/include/wiimote/protocol.h
 )
 
 if(APPLE)

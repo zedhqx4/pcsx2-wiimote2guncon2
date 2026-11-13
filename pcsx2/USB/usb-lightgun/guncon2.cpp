@@ -132,6 +132,7 @@ namespace usb_lightgun
 		// Configuration
 		//////////////////////////////////////////////////////////////////////////
 		bool has_relative_binds = false;
+		bool wiimote_ir = false;
 		bool custom_config = false;
 		u32 screen_width = 640;
 		u32 screen_height = 240;
@@ -370,9 +371,36 @@ namespace usb_lightgun
 
 	std::tuple<s16, s16> GunCon2State::CalculatePosition()
 	{
+		float window_x = 0.0f;
+		float window_y = 0.0f;
+
+		if (wiimote_ir)
+		{
+			// Use the Wii Remote's IR camera as the absolute GunCon 2 aim source.
+			// Do not fall back to the host mouse when the sensor bar is not visible.
+			const std::optional<std::array<float, 2>> aim = InputManager::GetWiimoteAimPosition();
+			if (!aim.has_value())
+			{
+				if (!cursor_path.empty())
+					ImGuiManager::SetSoftwareCursorPosition(GetSoftwarePointerIndex(), -10000.0f, -10000.0f);
+				return std::make_tuple(static_cast<s16>(0), static_cast<s16>(0));
+			}
+
+			window_x = (aim->at(0) + 1.0f) * 0.5f * static_cast<float>(ImGuiManager::GetWindowWidth());
+			window_y = (aim->at(1) + 1.0f) * 0.5f * static_cast<float>(ImGuiManager::GetWindowHeight());
+
+			if (!cursor_path.empty())
+				ImGuiManager::SetSoftwareCursorPosition(GetSoftwarePointerIndex(), window_x, window_y);
+		}
+		else
+		{
+			const auto position = has_relative_binds ? GetAbsolutePositionFromRelativeAxes() :
+				InputManager::GetPointerAbsolutePosition(0);
+			window_x = position.first;
+			window_y = position.second;
+		}
+
 		float pointer_x, pointer_y;
-		const auto& [window_x, window_y] =
-			(has_relative_binds) ? GetAbsolutePositionFromRelativeAxes() : InputManager::GetPointerAbsolutePosition(0);
 		GSTranslateWindowToDisplayCoordinates(window_x, window_y, &pointer_x, &pointer_y);
 
 		s16 pos_x, pos_y;
@@ -426,13 +454,28 @@ namespace usb_lightgun
 
 	u32 GunCon2State::GetSoftwarePointerIndex() const
 	{
-		return has_relative_binds ? (InputManager::MAX_POINTER_DEVICES + port) : 0;
+		return (has_relative_binds || wiimote_ir) ? (InputManager::MAX_POINTER_DEVICES + port) : 0;
 	}
 
 	void GunCon2State::UpdateSoftwarePointerPosition()
 	{
 		if (cursor_path.empty())
 			return;
+
+		if (wiimote_ir)
+		{
+			const std::optional<std::array<float, 2>> aim = InputManager::GetWiimoteAimPosition();
+			if (!aim.has_value())
+			{
+				ImGuiManager::SetSoftwareCursorPosition(GetSoftwarePointerIndex(), -10000.0f, -10000.0f);
+				return;
+			}
+
+			const float window_x = (aim->at(0) + 1.0f) * 0.5f * static_cast<float>(ImGuiManager::GetWindowWidth());
+			const float window_y = (aim->at(1) + 1.0f) * 0.5f * static_cast<float>(ImGuiManager::GetWindowHeight());
+			ImGuiManager::SetSoftwareCursorPosition(GetSoftwarePointerIndex(), window_x, window_y);
+			return;
+		}
 
 		const auto& [window_x, window_y] = GetAbsolutePositionFromRelativeAxes();
 		ImGuiManager::SetSoftwareCursorPosition(GetSoftwarePointerIndex(), window_x, window_y);
@@ -516,6 +559,7 @@ namespace usb_lightgun
 		}
 
 		const s32 prev_pointer_index = s->GetSoftwarePointerIndex();
+		s->wiimote_ir = USB::GetConfigBool(si, s->port, TypeName(), "wiimote_ir", false);
 
 		s->has_relative_binds = (USB::ConfigKeyExists(si, s->port, TypeName(), "RelativeLeft") ||
 			USB::ConfigKeyExists(si, s->port, TypeName(), "RelativeRight") ||
@@ -623,6 +667,10 @@ namespace usb_lightgun
 			{SettingInfo::Type::Boolean, "custom_config", TRANSLATE_NOOP("USB", "Manual Screen Configuration"),
 				TRANSLATE_NOOP("USB",
 					"Forces the use of the screen parameters below, instead of automatic parameters if available."),
+				"false"},
+			{SettingInfo::Type::Boolean, "wiimote_ir", TRANSLATE_NOOP("USB", "Use Wiimote IR Aiming"),
+				TRANSLATE_NOOP("USB",
+					"Uses the Wii Remote's IR camera directly for GunCon 2 aiming. When tracking is lost, the gun reports offscreen instead of falling back to the host mouse."),
 				"false"},
 			{SettingInfo::Type::Float, "scale_x", TRANSLATE_NOOP("USB", "X Scale (Sensitivity)"),
 				TRANSLATE_NOOP("USB", "Scales the position to simulate CRT curvature."), "100", "0", "200", "0.1",
