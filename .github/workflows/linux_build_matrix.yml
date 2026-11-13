@@ -4,6 +4,7 @@ on:
   push:
     branches-ignore:
       - "l10n_master"
+      - "feature/wiimote-native-guncon2"
   pull_request:
     branches:
       - master
