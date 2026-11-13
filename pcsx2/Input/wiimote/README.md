@@ -19,7 +19,7 @@ When IR tracking is lost, GunCon 2 receives an offscreen position (0, 0). It doe
 - HID reads and writes run on a dedicated worker thread. Button transitions are queued so short presses are not discarded between PCSX2 input polls.
 - Button and Nunchuk stick events are exposed through PCSX2's regular input-source and USB binding system.
 - IR aiming is read by GunCon 2 directly from the Wiimote source. It does not call PCSX2's host-pointer update functions and does not synthesize mouse movement.
-- The remote's single rumble motor receives the stronger of PCSX2's two motor channels.
+- The remote's single rumble motor receives the stronger of PCSX2's two motor channels when the Wiimote is assigned to a rumble-capable PAD. The emulated USB GunCon 2 protocol has no rumble output, so a GunCon-only configuration does not produce game-driven rumble.
 - This first integration supports one connected Wii Remote. Additional remotes, other extension types, MotionPlus data and alternative Linux transports are not implemented here.
 - Linux behavior depends on SDL3 HIDAPI being able to open the remote. A kernel driver that claims the HID interface or restrictive device permissions may prevent access; that needs validation on the target system.
 

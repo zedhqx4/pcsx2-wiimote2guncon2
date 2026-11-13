@@ -89,12 +89,28 @@ TEST(WiimoteProtocol, RejectsUnknownAndTruncatedReportsWithoutChangingState)
 
 TEST(WiimoteProtocol, ParsesExtensionStatus)
 {
-	const std::array<std::uint8_t, 7> report = {0x20, 0, 0, 0x02, 0, 0, 0x80};
-	const std::optional<wiimote::WiiStatus> status = wiimote::wii_parse_status(report);
+	const std::array<std::uint8_t, 7> connected_report = {0x20, 0, 0, 0x02, 0, 0, 0x80};
+	const std::optional<wiimote::WiiStatus> connected = wiimote::wii_parse_status(connected_report);
 
-	ASSERT_TRUE(status.has_value());
-	EXPECT_TRUE(status->extension);
-	EXPECT_EQ(status->battery, 0x80);
+	ASSERT_TRUE(connected.has_value());
+	EXPECT_TRUE(connected->extension);
+	EXPECT_EQ(connected->battery, 0x80);
+
+	const std::array<std::uint8_t, 7> disconnected_report = {0x20, 0, 0, 0x00, 0, 0, 0x40};
+	const std::optional<wiimote::WiiStatus> disconnected = wiimote::wii_parse_status(disconnected_report);
+
+	ASSERT_TRUE(disconnected.has_value());
+	EXPECT_FALSE(disconnected->extension);
+	EXPECT_EQ(disconnected->battery, 0x40);
+}
+
+TEST(WiimoteProtocol, SelectsContinuousIrAndExtensionReports)
+{
+	const std::array<std::uint8_t, 3> report = wiimote::wii_reporting_report(0x37);
+
+	EXPECT_EQ(report[0], 0x12);
+	EXPECT_EQ(report[1], 0x04);
+	EXPECT_EQ(report[2], 0x37);
 }
 
 TEST(WiimoteMath, CentresAndMirrorsTheIrPointer)
