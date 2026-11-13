@@ -68,6 +68,12 @@ TEST(WiimoteProtocol, ParsesBasicIrAndNunchukReport)
 	EXPECT_EQ(state.ir[1].y, 384);
 	EXPECT_FALSE(state.ir[2].valid);
 	EXPECT_FALSE(state.ir[3].valid);
+
+	// Keep the complete data path under test: 0x37 packet -> decoded IR dots -> normalized aim.
+	const std::optional<std::array<float, 2>> aim = wiimote::wii_ir_pointer(state.ir);
+	ASSERT_TRUE(aim.has_value());
+	EXPECT_NEAR((*aim)[0], 0.0f, 0.001f);
+	EXPECT_NEAR((*aim)[1], 0.0f, 0.001f);
 }
 
 TEST(WiimoteProtocol, RejectsUnknownAndTruncatedReportsWithoutChangingState)
