@@ -1,5 +1,6 @@
 add_pcsx2_test(core_test
 	patch_tests.cpp
+	wiimote_tests.cpp
 	MockMemoryInterface.h
 	StubHost.cpp
 )
@@ -75,3 +76,6 @@ if(WIN32 AND TARGET SDL3::SDL3)
 			COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${SDL3_DLL_PATH}" "$<TARGET_FILE_DIR:core_test>")
 	endif()
 endif()
+
+# The Wiimote protocol and IR math are part of PCSX2's input implementation.
+target_include_directories(core_test PRIVATE "${CMAKE_SOURCE_DIR}/pcsx2/Input/wiimote/include")
