@@ -51,6 +51,7 @@ namespace ImGuiManager
 		float extent_x;
 		float extent_y;
 		std::pair<float, float> pos;
+		bool draw_crosshair = false;
 	};
 
 	static void UpdateScale();
@@ -1401,16 +1402,38 @@ void ImGuiManager::UpdateSoftwareCursorTexture(u32 index)
 
 void ImGuiManager::DrawSoftwareCursor(const SoftwareCursor& sc, const std::pair<float, float>& pos)
 {
-	if (!sc.texture)
+	if (!sc.texture && !sc.draw_crosshair)
 		return;
 
-	const ImVec2 min(pos.first - sc.extent_x, pos.second - sc.extent_y);
-	const ImVec2 max(pos.first + sc.extent_x, pos.second + sc.extent_y);
-
 	ImDrawList* dl = ImGui::GetForegroundDrawList();
+	if (sc.draw_crosshair)
+	{
+		// A simple high-contrast reticle, available without a user-supplied image.
+		const ImVec2 center(pos.first, pos.second);
+		constexpr float kRadius = 10.0f;
+		constexpr float kGap = 4.0f;
+		constexpr float kArm = 18.0f;
+		const ImU32 outline = IM_COL32(0, 0, 0, 230);
+		dl->AddCircle(center, kRadius, outline, 24, 3.0f);
+		dl->AddLine(ImVec2(center.x - kArm, center.y), ImVec2(center.x - kGap, center.y), outline, 4.0f);
+		dl->AddLine(ImVec2(center.x + kGap, center.y), ImVec2(center.x + kArm, center.y), outline, 4.0f);
+		dl->AddLine(ImVec2(center.x, center.y - kArm), ImVec2(center.x, center.y - kGap), outline, 4.0f);
+		dl->AddLine(ImVec2(center.x, center.y + kGap), ImVec2(center.x, center.y + kArm), outline, 4.0f);
+		dl->AddCircle(center, kRadius, sc.color, 24, 1.5f);
+		dl->AddLine(ImVec2(center.x - kArm, center.y), ImVec2(center.x - kGap, center.y), sc.color, 2.0f);
+		dl->AddLine(ImVec2(center.x + kGap, center.y), ImVec2(center.x + kArm, center.y), sc.color, 2.0f);
+		dl->AddLine(ImVec2(center.x, center.y - kArm), ImVec2(center.x, center.y - kGap), sc.color, 2.0f);
+		dl->AddLine(ImVec2(center.x, center.y + kGap), ImVec2(center.x, center.y + kArm), sc.color, 2.0f);
+		dl->AddCircleFilled(center, 1.5f, sc.color);
+	}
 
-	dl->AddImage(
-		reinterpret_cast<ImTextureID>(sc.texture.get()->GetNativeHandle()), min, max, ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), sc.color);
+	if (sc.texture)
+	{
+		const ImVec2 min(pos.first - sc.extent_x, pos.second - sc.extent_y);
+		const ImVec2 max(pos.first + sc.extent_x, pos.second + sc.extent_y);
+		dl->AddImage(reinterpret_cast<ImTextureID>(sc.texture.get()->GetNativeHandle()), min, max,
+			ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), sc.color);
+	}
 }
 
 void ImGuiManager::DrawSoftwareCursors()
@@ -1461,6 +1484,14 @@ void ImGuiManager::SetSoftwareCursorPosition(u32 index, float pos_x, float pos_y
 	SoftwareCursor& sc = s_software_cursors[index];
 	sc.pos.first = pos_x;
 	sc.pos.second = pos_y;
+}
+
+void ImGuiManager::SetSoftwareCursorCrosshair(u32 index, bool enabled, u32 color)
+{
+	pxAssert(index < InputManager::MAX_SOFTWARE_CURSORS);
+	SoftwareCursor& sc = s_software_cursors[index];
+	sc.draw_crosshair = enabled;
+	sc.color = color | 0xFF000000;
 }
 
 std::string ImGuiManager::StripIconCharacters(std::string_view str)
