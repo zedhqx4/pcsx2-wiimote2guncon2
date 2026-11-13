@@ -302,22 +302,30 @@ void WiimoteInputSource::ThreadMain()
 		const std::span<const u8> report(input.data(), static_cast<size_t>(bytes_read));
 		if (const std::optional<wiimote::WiiStatus> status = wiimote::wii_parse_status(report))
 		{
-			// wii_init_sequence() already initializes the extension bus before this first status reply.
-			// Only repeat the writes when an extension is plugged in later.
-			if (received_first_status && status->extension && !extension_connected)
+			// Connecting or disconnecting an extension stops the current data
+			// reporting stream. Re-enable mode 0x37 after either transition.
+			if (received_first_status && status->extension != extension_connected)
 			{
 				bool extension_setup_ok = true;
-				for (const wiimote::WiiStep& step : wiimote::wii_extension_steps())
+
+				if (status->extension)
 				{
-					if (!SendReport(device, step.report, m_rumble.load()))
+					// A newly connected Nunchuk must be initialized before its
+					// extension bytes can be decoded as plain data.
+					for (const wiimote::WiiStep& step : wiimote::wii_extension_steps())
 					{
-						extension_setup_ok = false;
-						break;
+						if (!SendReport(device, step.report, m_rumble.load()))
+						{
+							extension_setup_ok = false;
+							break;
+						}
+						if (step.delay_ms)
+							std::this_thread::sleep_for(std::chrono::milliseconds(step.delay_ms));
 					}
-					if (step.delay_ms)
-						std::this_thread::sleep_for(std::chrono::milliseconds(step.delay_ms));
 				}
 
+				// The Wiimote disables continuous reports on both extension
+				// insertion and removal, so always restore the selected mode.
 				const auto mode = wiimote::wii_reporting_report(0x37);
 				extension_setup_ok = extension_setup_ok && SendReport(device, mode, m_rumble.load());
 				if (!extension_setup_ok)
@@ -326,6 +334,11 @@ void WiimoteInputSource::ThreadMain()
 					device = nullptr;
 					m_connected.store(false);
 					m_device_list_changed.store(true);
+					{
+						std::lock_guard lock(m_state_mutex);
+						m_state = wiimote::WiiState{};
+						m_button_events.clear();
+					}
 					continue;
 				}
 			}
