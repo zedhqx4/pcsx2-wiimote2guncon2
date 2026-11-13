@@ -13,6 +13,14 @@ This integration exposes one Nintendo Wii Remote as a PCSX2 input source and fee
 
 When IR tracking is lost, GunCon 2 receives an offscreen position (0, 0). It does not fall back to the host mouse. When **Use Wiimote IR Aiming** is disabled, PCSX2 keeps its existing mouse/relative-input behavior.
 
+With **Use Wiimote IR Aiming** enabled and no custom **Cursor Path**, PCSX2 displays a built-in crosshair. The crosshair disappears while the IR camera cannot see two usable points; this mirrors the offscreen report sent to the emulated gun.
+
+The input log reports IR tracking acquisition/loss and, while unavailable, the number and coordinates of visible IR points. This helps distinguish a sensor-bar visibility problem from a report-decoding problem.
+
+The HID worker reconnects after a read error or 1.5 seconds without any reports. Device discovery is retried automatically; the input state is cleared between connections.
+
+There is not yet a dedicated Wii Remote calibration wizard. **Calibration Shot** is the GunCon 2 protocol's special calibration-report sequence, not a sensor-bar calibration routine. The existing manual screen configuration (center, scale, and screen dimensions) remains available for game-specific alignment after IR tracking is working.
+
 ## Implementation notes
 
 - The Wiimote is discovered through SDL3 HIDAPI using Nintendo VID 0x057E and product IDs 0x0306 (RVL-CNT-01) or 0x0330 (RVL-CNT-01-TR).
