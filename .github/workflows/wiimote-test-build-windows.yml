@@ -1,0 +1,35 @@
+name: 🐱 Wiimote Test Build - Windows SSE4
+
+on:
+  push:
+    branches:
+      - feature/wiimote-native-guncon2
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wiimote-test-build-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-dependencies:
+    name: Windows x64 dependencies
+    uses: ./.github/workflows/windows_deps_build.yml
+    with:
+      os: windows-2025-vs2026
+      platform: x64
+
+  windows-sse4:
+    name: PCSX2 Windows SSE4 build
+    needs: windows-dependencies
+    uses: ./.github/workflows/windows_build_qt.yml
+    with:
+      jobName: "PCSX2 Wiimote - Windows SSE4"
+      artifactPrefixName: "PCSX2-windows-Qt-x64-sse4-msvc-wiimote"
+      os: windows-2025-vs2026
+      platform: x64
+      configuration: Release
+      simd: SSE4
+      buildSystem: msbuild
+    secrets: inherit
